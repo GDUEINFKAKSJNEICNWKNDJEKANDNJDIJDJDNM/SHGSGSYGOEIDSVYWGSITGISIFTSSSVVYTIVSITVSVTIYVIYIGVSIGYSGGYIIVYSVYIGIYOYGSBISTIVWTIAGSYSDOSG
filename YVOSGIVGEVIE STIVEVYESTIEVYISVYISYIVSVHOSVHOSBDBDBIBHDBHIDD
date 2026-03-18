@@ -17,7 +17,7 @@ local Whitelist = {}
 -- [[ PERFORMANCE OPTIMIZER SETTINGS ]] --
 local PerformanceSettings = {
     GlobalOptimization = true,
-    RenderFrequency = 2, -- Throttles heavy rendering to every 3rd frame to save FPS
+    RenderFrequency = 2, 
     SimplifiedBones = true,
     DisableShadows = true,
     LowDetailHitboxes = true
@@ -31,7 +31,7 @@ local HitboxSettings = {
     Color = Color3.fromRGB(255, 20, 147)
 }
 
--- [[ SILENT AIM HITPARTS (20+ Accuracy Parts) ]] --
+-- [[ SILENT AIM HITPARTS ]] --
 local SilentAimParts = {
     "Head", "UpperTorso", "LowerTorso", "HumanoidRootPart",
     "LeftUpperArm", "LeftLowerArm", "LeftHand",
@@ -162,7 +162,14 @@ local FPSSettings = {
 
 local TeleportSettings = {
     Enabled = false,
-    FreeMouseTPKey = Enum.KeyCode.F1
+    FreeMouseTPKey = Enum.KeyCode.F1,
+    PlayerTPEnabled = false,
+    PlayerTPKey = Enum.KeyCode.U,
+    PlayerTPActive = false
+}
+
+local MiscSettings = {
+    NoDelayJump = false
 }
 
 local MagnetSettings = {
@@ -337,7 +344,7 @@ local WhitelistPage = CreatePage("Whitelist")
 local VisualPage = CreatePage("Visuals")
 local ESPPage = CreatePage("ESP")
 local TeleportPage = CreatePage("Teleport")
-local SpeedPage = CreatePage("Speed")
+local MiscPage = CreatePage("Misc")
 local FPSPage = CreatePage("FPS")
 local AvatarPage = CreatePage("Avatar")
 local SettingsPage = CreatePage("Settings")
@@ -350,7 +357,7 @@ CreateTabBtn("Whitelist")
 CreateTabBtn("Visuals")
 CreateTabBtn("ESP")
 CreateTabBtn("Teleport")
-CreateTabBtn("Speed") 
+CreateTabBtn("Misc") 
 CreateTabBtn("FPS")
 CreateTabBtn("Avatar")
 CreateTabBtn("Settings")
@@ -447,6 +454,7 @@ local function CreateToggle(parent, text, bindType, default, callback, hasColor,
         elseif bindType == "Speed" then initialKey = FlameConfig.WalkSpeedKey.Name
         elseif bindType == "UI" then initialKey = GlobalSettings.HideAllKey.Name 
         elseif bindType == "FreeMouse" then initialKey = TeleportSettings.FreeMouseTPKey.Name 
+        elseif bindType == "PlayerTP" then initialKey = TeleportSettings.PlayerTPKey.Name
         elseif bindType == "Reset" then initialKey = ResetSettings.ResetKey.Name end
         bindBtn.Text = "["..initialKey.."]"
         bindBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -465,6 +473,7 @@ local function CreateToggle(parent, text, bindType, default, callback, hasColor,
                 elseif bindType == "Speed" then FlameConfig.WalkSpeedKey = newKey
                 elseif bindType == "UI" then GlobalSettings.HideAllKey = newKey 
                 elseif bindType == "FreeMouse" then TeleportSettings.FreeMouseTPKey = newKey
+                elseif bindType == "PlayerTP" then TeleportSettings.PlayerTPKey = newKey
                 elseif bindType == "Reset" then ResetSettings.ResetKey = newKey end
                 bindBtn.Text = "["..newKey.Name.."]"
             end
@@ -616,17 +625,22 @@ CreateToggle(ESPPage, "Health Bars", nil, false, function(v) ESPSettings.Health 
 CreateToggle(ESPPage, "Distance", nil, false, function(v) ESPSettings.Distance = v end)
 CreateSlider(ESPPage, "Max View Dist", 100, 3000, 500, function(v) ESPSettings.MaxDistance = v end)
 
-CreateHeader(TeleportPage, "MOUSE TELEPORT")
-CreateToggle(TeleportPage, "FreeMouse TP Key", "FreeMouse", false, function(v) TeleportSettings.Enabled = v end)
+CreateHeader(TeleportPage, "TELEPORTS")
+CreateToggle(TeleportPage, "FreeMouse TP", "FreeMouse", false, function(v) TeleportSettings.Enabled = v end)
 
 CreateHeader(TeleportPage, "LOCATION TELEPORTS")
 for name, cf in pairs(locations) do
     CreateButton(TeleportPage, name, function() if LocalPlayer.Character then LocalPlayer.Character:PivotTo(cf + Vector3.new(0, 0.5, 0)) end end).TextColor3 = Color3.fromRGB(255, 105, 180)
 end
 
-CreateHeader(SpeedPage, "MOVEMENT")
-CreateToggle(SpeedPage, "Speed Master", "Speed", false, function(v) FlameConfig.MasterSpeed = v end)
-CreateSlider(SpeedPage, "Speed Dial", 16, 1000, 100, function(v) FlameConfig.WalkSpeedValue = v end)
+-- [[ MISC PAGE ]] --
+CreateHeader(MiscPage, "MOVEMENT")
+CreateToggle(MiscPage, "Speed Master", "Speed", false, function(v) FlameConfig.MasterSpeed = v end)
+CreateSlider(MiscPage, "Speed Value", 16, 1000, 100, function(v) FlameConfig.WalkSpeedValue = v end)
+CreateToggle(MiscPage, "No Delay Jump", nil, false, function(v) MiscSettings.NoDelayJump = v end)
+
+CreateHeader(MiscPage, "CHARACTER")
+CreateToggle(MiscPage, "Player TP", "PlayerTP", false, function(v) TeleportSettings.PlayerTPEnabled = v end)
 
 CreateHeader(FPSPage, "PERFORMANCE")
 CreateToggle(FPSPage, "FPS Unlocker", nil, true, function(v) FPSSettings.MasterEnabled = v end)
@@ -743,6 +757,15 @@ _G.con = UserInputService.InputBegan:Connect(function(keyc, sp)
     if keyc.KeyCode == GlobalSettings.HideAllKey then MainFrame.Visible = not MainFrame.Visible end
     if keyc.KeyCode == TeleportSettings.FreeMouseTPKey and TeleportSettings.Enabled and Mouse.Hit then if LocalPlayer.Character then LocalPlayer.Character:PivotTo(Mouse.Hit + Vector3.new(0, 3, 0)) end end
 
+    -- Player TP Logic (U key)
+    if keyc.KeyCode == TeleportSettings.PlayerTPKey and TeleportSettings.PlayerTPEnabled then
+        local target = GetClosestToCursor(math.huge)
+        if target and target.Character then
+            LocalPlayer.Character:PivotTo(target.Character:GetPivot())
+            TeleportSettings.PlayerTPActive = true
+        end
+    end
+
     if FlameConfig.MasterLock then
         local usingMouse = FlameConfig.UseRightClick
         local isTriggered = (usingMouse and keyc.UserInputType == Enum.UserInputType.MouseButton2) or (not usingMouse and keyc.KeyCode == FlameConfig.MouseLockKey)
@@ -758,6 +781,7 @@ _G.con = UserInputService.InputBegan:Connect(function(keyc, sp)
 end)
 
 UserInputService.InputEnded:Connect(function(io)
+    if io.KeyCode == TeleportSettings.PlayerTPKey then TeleportSettings.PlayerTPActive = false end
     if FlameConfig.MasterLock and FlameConfig.ActivationType == "Hold" then
         local usingMouse = FlameConfig.UseRightClick
         local isReleased = (usingMouse and io.UserInputType == Enum.UserInputType.MouseButton2) or (not usingMouse and io.KeyCode == FlameConfig.MouseLockKey)
@@ -783,7 +807,7 @@ oldIndex = hookmetamethod(game, "__index", function(self, Index)
 end)
 
 task.spawn(function() 
-    while task.wait(0.5) do -- Optimized from 0.2 to 0.5 to reduce CPU spikes
+    while task.wait(0.5) do 
         if FPSSettings.MasterEnabled then setfpscap(FPSSettings.TargetFPS) end 
         if HitboxSettings.Enabled then UpdateHitboxes() end
     end 
@@ -801,6 +825,18 @@ RunService.RenderStepped:Connect(function()
     end
     
     if AvatarSettings.HeadlessActive then ApplyHeadless() end
+
+    -- Spam TP Logic
+    if TeleportSettings.PlayerTPActive and TeleportSettings.PlayerTPEnabled then
+        local target = GetClosestToCursor(math.huge)
+        if target and target.Character then LocalPlayer.Character:PivotTo(target.Character:GetPivot()) end
+    end
+
+    -- No Delay Jump Logic
+    if MiscSettings.NoDelayJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        LocalPlayer.Character.Humanoid.JumpPower = 50 
+    end
 
     local function setSignal(s, m, a) if s then s.BackgroundColor3 = (not m and Color3.new(1,0,0) or (not a and Color3.new(1,1,0) or Color3.new(0,1,0))) end end
 
@@ -838,7 +874,7 @@ RunService.RenderStepped:Connect(function()
 
     FOVCircle.Visible = getgenv().ShowFOV; FOVCircle.Radius = getgenv().FOVRadius; FOVCircle.Position = UserInputService:GetMouseLocation()
     
-    -- Throttled ESP and rendering logic
+    -- Throttled ESP Logic
     espThrottle = espThrottle + 1
     if espThrottle > PerformanceSettings.RenderFrequency then
         espThrottle = 0
